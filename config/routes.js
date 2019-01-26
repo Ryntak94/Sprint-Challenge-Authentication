@@ -3,6 +3,7 @@ const knex = require('knex');
 const dbConfig = require('../knexfile');
 const db = knex(dbConfig.development);
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const { authenticate } = require('../auth/authenticate');
 
@@ -12,26 +13,45 @@ module.exports = server => {
   server.get('/api/jokes', authenticate, getJokes);
 };
 
+function generateToken(username)    {
+    const payload   =   {
+        username
+    }
+
+    const options   =   {
+        expiresIn: '1h',
+        jwtid: '1234'
+    }
+
+    const secret = process.env.JWT_SECRET
+    const token = jwt.sign(payload, secret, options);
+    return token;
+
+}
+
 function register(req, res) {
     const creds = req.body;
     creds.username = creds.username.toUpperCase();
     creds.password = bcrypt.hashSync(creds.password);
     db('users').insert(creds)
         .then(id    =>  {
-            res.status(201).json( {id: id[0]} )
+            const token = generateToken(creds.username)
+            res.status(201).json( { id: id[0], token: token } )
         })
         .catch(err  =>  {
-            res.status(500).json( {message: "Please a provide username and password"} )
+            res.status(500).json( {message: "Please provide a username and password"} )
         })
 }
 
 function login(req, res) {
     const creds = req.body;
     creds.username = creds.username.toUpperCase();
+    generateToken(creds.username);
     db('users').where('username', creds.username)
         .then(users =>  {
             if(users.length && bcrypt.compareSync(creds.password, users[0].password))   {
-                res.status(200).json({ message: "Success"})
+                const token = generateToken(creds.username);
+                res.status(200).json({ token })
             }   else {
                 res.status(500).json({ message: "Incorrect username or password"})
             }
