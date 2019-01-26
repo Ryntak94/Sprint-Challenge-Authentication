@@ -24,6 +24,7 @@ function generateToken(username)    {
     }
 
     const secret = process.env.JWT_SECRET
+    console.log(secret);
     const token = jwt.sign(payload, secret, options);
     return token;
 
@@ -65,13 +66,20 @@ function getJokes(req, res) {
   const requestOptions = {
     headers: { accept: 'application/json' },
   };
+  db('users').where('username', req.decoded.username)
+  .then(response    =>  {
+      console.log("success");
+      axios
+        .get('https://icanhazdadjoke.com/search', requestOptions)
+        .then(response => {
+          res.status(200).json(response.data.results);
+        })
+        .catch(err => {
+          res.status(500).json({ message: 'Error Fetching Jokes', error: err });
+        });
+  })
+  .catch(err    =>  {
+      res.status(500).json({ err })
+  })
 
-  axios
-    .get('https://icanhazdadjoke.com/search', requestOptions)
-    .then(response => {
-      res.status(200).json(response.data.results);
-    })
-    .catch(err => {
-      res.status(500).json({ message: 'Error Fetching Jokes', error: err });
-    });
 }
